@@ -71,8 +71,8 @@ spec:
           {{- $hubHost := printf "http://%s:$(%s_SERVICE_PORT)" (include "jupyterhub.hub.fullname" .) $hubNameAsEnv }}
           command:
             - configurable-http-proxy
-            - "--ip=::"
-            - "--api-ip=::"
+            - "--ip="
+            - "--api-ip="
             - --api-port=8001
             - --default-target={{ .Values.proxy.chp.defaultTarget | default $hubHost }}
             - --error-target={{ .Values.proxy.chp.errorTarget | default (printf "%s/hub/error" $hubHost) }}
@@ -163,3 +163,6 @@ spec:
           securityContext:
             {{- . | toYaml | trimSuffix "\n" | nindent 12 }}
           {{- end }}
+      {{- with .Values.proxy.chp.extraPodSpec }}
+      {{- . | toYaml | trimSuffix "\n" | nindent 6 }}
+      {{- end }}

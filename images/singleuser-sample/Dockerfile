@@ -1,19 +1,21 @@
-FROM jupyter/base-notebook:cf9a75c29789
+FROM jupyter/base-notebook:latest
 # Built from... https://hub.docker.com/r/jupyter/base-notebook/
 #               https://github.com/jupyter/docker-stacks/blob/HEAD/base-notebook/Dockerfile
 # Built from... Ubuntu 20.04
 
-# VULN_SCAN_TIME=2021-06-18_01:01:20
+# VULN_SCAN_TIME=2021-07-24_01:01:39
 
 # The jupyter/docker-stacks images contains jupyterhub and jupyterlab already.
 
 # Example install of git and nbgitpuller.
 # NOTE: git is already available in the jupyter/minimal-notebook image.
 USER root
-RUN apt-get update && apt-get install --yes --no-install-recommends \
-    dnsutils \
-    git \
-    iputils-ping \
+RUN apt-get update \
+ && apt-get upgrade -y \
+ && apt-get install -y --no-install-recommends \
+        dnsutils \
+        git \
+        iputils-ping \
  && rm -rf /var/lib/apt/lists/*
 USER $NB_USER
 

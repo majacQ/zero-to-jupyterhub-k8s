@@ -91,9 +91,10 @@ hub:
       subPath: /mock
       storageClassName: custom-storage-class
     url: custom-db-url
-  image:
+  image: &image
     name: dummy-name
     tag: dummy-tag
+    pullPolicy: Always
     pullSecrets: [c]
   initContainers:
     - name: mock-init-container-name
@@ -113,6 +114,11 @@ hub:
       value: MOCK_ENV_VAR_VALUE1
     MOCK_ENV_VAR_NAME2:
       value: MOCK_ENV_VAR_VALUE2
+    MOCK_ENV_VAR_NAME3:
+      valueFrom:
+        secretKeyRef:
+          name: my-k8s-secret
+          key: my-k8s-secret-key
   extraContainers: []
   extraVolumes: []
   extraVolumeMounts: []
@@ -137,8 +143,18 @@ hub:
           - "-c"
           - "echo Hello from the preStart handler >> /usr/share/message"
   services:
-    tests:
+    test-service-1:
       apiToken: mocked-api-token
+    test-service-2-key:
+      name: test-service-2-name
+      apiToken: mocked-api-token
+    test-service-3: {}
+    test-service-4:
+      admin: true
+      oauth_no_confirm: true
+      oauth_roles: [dummy]
+      info:
+        key1: value1
   pdb:
     enabled: true
     maxUnavailable: 1
@@ -161,6 +177,9 @@ hub:
       effect: NoSchedule
   serviceAccount: &serviceAccount
     annotations: *annotations
+  extraPodSpec: &extraPodSpec
+    hostNetwork: true
+    dnsPolicy: ClusterFirstWithHostNet
 
 rbac:
   enabled: true
@@ -184,7 +203,14 @@ proxy:
     resources: *resources
     defaultTarget: http://dummy.local/hello
     errorTarget: http://dummy.local/error
-    extraEnv: *extraEnv
+    extraEnv:
+      - name: MOCK_ENV_VAR_NAME1
+        value: MOCK_ENV_VAR_VALUE1
+      - name: MOCK_ENV_VAR_NAME2
+        valueFrom:
+          secretKeyRef:
+            name: my-k8s-secret
+            key: my-k8s-secret-key
     nodeSelector:
       node-type: mock
     tolerations:
@@ -204,10 +230,8 @@ proxy:
       enabled: true
       maxUnavailable: 1
       minAvailable: 1
+    extraPodSpec: *extraPodSpec
   traefik:
-    extraPorts:
-      - name: ssh
-        containerPort: 8022
     labels: *labels
     resources: *resources
     extraEnv: *extraEnv
@@ -225,12 +249,33 @@ proxy:
             - ipBlock:
                 cidr: 0.0.0.0/0
       interNamespaceAccessLabels: accept
-      allowedIngressPorts: [http, https]
+      allowedIngressPorts: [http, https, ssh]
     pdb:
       enabled: true
       maxUnavailable: null
       minAvailable: 1
     serviceAccount: *serviceAccount
+    extraPodSpec: *extraPodSpec
+    extraPorts:
+      - name: ssh
+        containerPort: 8022
+    extraStaticConfig:
+      entryPoints:
+        ssh:
+          address: ":8022"
+    extraDynamicConfig:
+      tcp:
+        services:
+          ssh:
+            loadBalancer:
+              servers:
+                - address: jupyterhub-ssh:22
+        routers:
+          ssh-router:
+            entrypoints:
+              - ssh
+            rule: "HostSNI(`*`)"
+            service: ssh
   secretSync:
     resources: *resources
   labels: *labels
@@ -377,9 +422,7 @@ scheduling:
     enabled: true
     replicas: 1
     logLevel: 10
-    image:
-      name: gcr.io/google_containers/kube-scheduler-amd64
-      tag: v1.11.2
+    image: *image
     nodeSelector:
       node-type: mock
     tolerations:
@@ -396,6 +439,7 @@ scheduling:
             weight: 161051
           - name: NodeAffinity
     serviceAccount: *serviceAccount
+    extraPodSpec: *extraPodSpec
   podPriority:
     enabled: true
   userPlaceholder:
@@ -451,6 +495,8 @@ ingress:
   hosts:
     - mocked1.domain.name
     - mocked2.domain.name
+  pathSuffix: dummy-pathSuffix
+  pathType: ImplementationSpecific
   tls:
     - secretName: jupyterhub-tls
       hosts:

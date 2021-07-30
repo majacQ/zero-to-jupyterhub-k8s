@@ -1,6 +1,6 @@
 FROM ubuntu:20.04
 
-# VULN_SCAN_TIME=2021-06-21_01:04:34
+# VULN_SCAN_TIME=2021-07-24_01:02:36
 
 ENV DEBIAN_FRONTEND=noninteractive \
     LANG=C.UTF-8
@@ -11,6 +11,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
 RUN EXTRA_APT_PACKAGES=; \
     if [ `uname -m` != 'x86_64' ]; then EXTRA_APT_PACKAGES=libpq-dev; fi; \
     apt-get update && \
+    apt-get upgrade -y && \
     apt-get install -y --no-install-recommends \
       git \
       vim \

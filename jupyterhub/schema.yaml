@@ -619,7 +619,7 @@ properties:
         additionalProperties: false
         properties:
           type:
-            enum: [sqlite-pvc, sqlite-memory, mysql, postgres]
+            enum: [sqlite-pvc, sqlite-memory, mysql, postgres, other]
             description: |
               Type of database backend to use for the hub database.
 
@@ -680,6 +680,15 @@ properties:
 
                  The user specified in the connection string must have the rights to create
                  tables in the database specified.
+
+              5. **other**
+
+                 Use an externally hosted database of some kind other than mysql
+                 or postgres.
+
+                 When using _other_, the database password must be passed as
+                 part of [hub.db.url](schema_hub.db.url) as
+                 [hub.db.password](schema_hub.db.password) will be ignored.
           pvc:
             type: object
             additionalProperties: false
@@ -689,7 +698,10 @@ properties:
             properties:
               annotations:
                 type: object
-                additionalProperties: true
+                additionalProperties: false
+                patternProperties: &labels-and-annotations-patternProperties
+                  ".*":
+                    type: string
                 description: |
                   Annotations to apply to the PVC containing the sqlite database.
 
@@ -752,7 +764,8 @@ properties:
               Password for the database when `hub.db.type` is mysql or postgres.
       labels:
         type: object
-        additionalProperties: true
+        additionalProperties: false
+        patternProperties: *labels-and-annotations-patternProperties
         description: |
           Extra labels to add to the hub pod.
 
@@ -774,7 +787,7 @@ properties:
                 command: ['sh', '-c', 'command2']
           ```
       extraEnv:
-        type: object
+        type: [object, array]
         additionalProperties: true
         description: |
           Extra environment variables that should be set for the hub pod.
@@ -821,9 +834,9 @@ properties:
           This is the *escape hatch* - if you want to configure JupyterHub to do something specific
           that is not present here as an option, you can write the raw Python to do it here.
 
-          extraConfig is a *dict*, so there can be multiple configuration snippets
-          under different names.
-          The configuration sections are run in alphabetical order.
+          extraConfig is a *dict*, so there can be multiple configuration
+          snippets under different names. The configuration sections are run in
+          alphabetical order based on the keys.
 
           Non-exhaustive examples of things you can do here:
             - Subclass authenticator / spawner to do a custom thing
@@ -835,17 +848,28 @@ properties:
           [| operator](https://yaml.org/spec/1.2/spec.html#id2795688).
 
           For example:
-            ```yaml
-            hub:
-              extraConfig:
-                myConfig.py: |
-                  c.JupyterHub.something = 'something'
-                  c.Spawner.somethingelse = 'something else'
-            ```
 
-          No validation of this python is performed! If you make a mistake here, it will probably
-          manifest as either the hub pod going into `Error` or `CrashLoopBackoff` states, or in
-          some special cases, the hub running but... just doing very random things. Be careful!
+          ```yaml
+          hub:
+            extraConfig:
+              myConfig.py: |
+                c.JupyterHub.something = 'something'
+                c.Spawner.something_else = 'something else'
+          ```
+
+          ```{note}
+          No code validation is performed until JupyterHub loads it! If you make
+          a typo here, it will probably manifest itself as the hub pod failing
+          to start up and instead entering an `Error` state or the subsequent
+          `CrashLoopBackoff` state.
+
+          To make use of your own programs linters etc, it would be useful to
+          not embed Python code inside a YAML file. To do that, consider using
+          [`hub.extraFiles`](schema_hub.extraFiles) and mounting a file to
+          `/usr/local/etc/jupyterhub/jupyterhub_config.d` in order to load your
+          extra configuration logic.
+          ```
+
       uid:
         type: [integer, "null"]
         minimum: 0
@@ -900,7 +924,8 @@ properties:
                   The nodePort to deploy the hub service on.
           annotations:
             type: object
-            additionalProperties: true
+            additionalProperties: false
+            patternProperties: *labels-and-annotations-patternProperties
             description: |
               Kubernetes annotations to apply to the hub service.
           extraPorts:
@@ -1013,7 +1038,8 @@ properties:
         description: *jupyterhub-native-config-description
       annotations:
         type: object
-        additionalProperties: true
+        additionalProperties: false
+        patternProperties: *labels-and-annotations-patternProperties
         description: |
           K8s annotations for the hub pod.
       authenticatePrometheus:
@@ -1109,13 +1135,95 @@ properties:
         type: object
         additionalProperties: true
         description: |
-          You can refer to the [JupyterHub
-          documentation](https://jupyterhub.readthedocs.io/en/stable/api/app.html)
-          except that you need to pass the services as a dictionary instead of a
-          list.
+          This is where you register JupyterHub services. For details on how to
+          configure these services in this Helm chart just keep reading but for
+          details on services themselves instead read [JupyterHub's
+          documentation](https://jupyterhub.readthedocs.io/en/stable/api/service.html).
 
-          The `name` field can be filled in by the dictionary keys, and a
-          camelCase formatting of api_token is also accepted.
+          ```{note}
+          Only a selection of JupyterHub's configuration options that can be
+          configured for a service are documented below. All configuration set
+          here will be applied even if this Helm chart doesn't recognize it.
+          ```
+
+          JupyterHub's native configuration accepts a list of service objects,
+          this Helm chart only accept a dictionary where each key represents the
+          name of a service and the value is the actual service objects.
+
+          When configuring JupyterHub services via this Helm chart, the `name`
+          field can be omitted as it can be implied by the dictionary key.
+          Further, the `api_token` field can be omitted as it will be
+          automatically generated as of version 1.1.0 of this Helm chart.
+
+          If you have an external service that needs to access the automatically
+          generated api_token for the service, you can access it from the `hub`
+          k8s Secret part of this Helm chart under the key
+          `hub.services.my-service-config-key.apiToken`.
+
+          Here is an example configuration of two services where the first
+          explicitly sets a name and api_token, while the second omits those and
+          lets the name be implied from the key name and the api_token be
+          automatically generated.
+
+          ```yaml
+          hub:
+            services:
+              my-service-1:
+                admin: true
+                name: my-explicitly-set-service-name
+                api_token: my-explicitly-set-api_token
+
+              # the name of the following service will be my-service-2
+              # the api_token of the following service will be generated
+              my-service-2: {}
+          ```
+
+          If you develop a Helm chart depending on the JupyterHub Helm chart and
+          want to let some Pod's environment variable be populated with the
+          api_token of a service registered like above, then do something along
+          these lines.
+
+          ```yaml
+          # ... container specification of a pod ...
+          env:
+            - name: MY_SERVICE_1_API_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  # Don't hardcode the name, use the globally accessible
+                  # named templates part of the JupyterHub Helm chart.
+                  name: {{ include "jupyterhub.hub.fullname" . }}
+                  # Note below the use of the configuration key my-service-1
+                  # rather than the explicitly set service name.
+                  key: hub.services.my-service-1.apiToken
+          ```
+        properties:
+          name:
+            type: string
+            description: |
+              The name can be implied via the key name under which this
+              service is configured, and is due to that allowed to be
+              omitted in this Helm chart configuration of JupyterHub.
+          admin:
+            type: boolean
+          command:
+            type: [string, array]
+          url:
+            type: string
+          api_token:
+            type: [string, "null"]
+            description: |
+              The api_token will be automatically generated if not
+              explicitly set. It will also be exposed in via a k8s Secret
+              part of this Helm chart under a specific key.
+
+              See the documentation under
+              [`hub.services`](schema_hub.services) for details about this.
+          apiToken:
+            type: [string, "null"]
+            description: |
+              An alias for api_token provided for backward compatibility by
+              the JupyterHub Helm chart that will be transformed to
+              api_token.
       shutdownOnLogout:
         type: [boolean, "null"]
         description: *jupyterhub-native-config-description
@@ -1141,9 +1249,59 @@ properties:
         properties:
           annotations:
             type: object
-            additionalProperties: true
+            additionalProperties: false
+            patternProperties: *labels-and-annotations-patternProperties
             description: |
               Kubernetes annotations to apply to the k8s ServiceAccount.
+      extraPodSpec: &extraPodSpec-spec
+        type: object
+        additionalProperties: true
+        description: |
+          Arbitrary extra k8s pod specification as a YAML object. The default
+          value of this setting is an empty object, i.e. no extra configuration.
+          The value of this property is augmented to the pod specification as-is.
+
+          This is a powerful tool for expert k8s administrators with advanced
+          configuration requirements. This setting should only be used for
+          configuration that cannot be accomplished through the other settings.
+          Misusing this setting can break your deployment and/or compromise
+          your system security.
+
+          This is one of four related settings for inserting arbitrary pod
+          specification:
+
+          1. hub.extraPodSpec
+          2. proxy.chp.extraPodSpec
+          3. proxy.traefik.extraPodSpec
+          4. scheduling.userScheduler.extraPodSpec
+
+          One real-world use of these settings is to enable host networking. For
+          example, to configure host networking for the hub pod, add the
+          following to your helm configuration values:
+
+          ```yaml
+          hub:
+            extraPodSpec:
+              hostNetwork: true
+              dnsPolicy: ClusterFirstWithHostNet
+          ```
+
+          Likewise, to configure host networking for the proxy pod, add the
+          following:
+
+          ```yaml
+          proxy:
+            chp:
+              extraPodSpec:
+                hostNetwork: true
+                dnsPolicy: ClusterFirstWithHostNet
+          ```
+
+          N.B. Host networking has special security implications and can easily
+          break your deployment. This is an example—not an endorsement.
+
+          See [PodSpec](https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#PodSpec)
+          for the latest pod resource specification.
 
   proxy:
     type: object
@@ -1178,7 +1336,7 @@ properties:
               flag twice, the last flag will be used, which mean you can
               override the default flag values as well.
           extraEnv:
-            type: object
+            type: [object, array]
             additionalProperties: true
             description: |
               Extra environment variables that should be set for the chp pod.
@@ -1240,6 +1398,7 @@ properties:
               or produce more informative error messages than the Hub's default,
               e.g. in highly customized deployments such as BinderHub.
               See Configurable HTTP Proxy for details on implementing an error target.
+          extraPodSpec: *extraPodSpec-spec
       secretToken:
         type: [string, "null"]
         description: |
@@ -1285,7 +1444,8 @@ properties:
               Default `LoadBalancer`. See `hub.service.type` for supported values.
           labels:
             type: object
-            additionalProperties: true
+            additionalProperties: false
+            patternProperties: *labels-and-annotations-patternProperties
             description: |
               Extra labels to add to the proxy service.
 
@@ -1293,7 +1453,8 @@ properties:
               to learn more about labels.
           annotations:
             type: object
-            additionalProperties: true
+            additionalProperties: false
+            patternProperties: *labels-and-annotations-patternProperties
             description: |
               Annotations to apply to the service that is exposing the proxy.
 
@@ -1454,7 +1615,8 @@ properties:
         properties:
           labels:
             type: object
-            additionalProperties: true
+            additionalProperties: false
+            patternProperties: *labels-and-annotations-patternProperties
             description: |
               Extra labels to add to the traefik pod.
 
@@ -1462,7 +1624,7 @@ properties:
               to learn more about labels.
           networkPolicy: *networkPolicy-spec
           extraEnv:
-            type: object
+            type: [object, array]
             additionalProperties: true
             description: |
               Extra environment variables that should be set for the traefik pod.
@@ -1504,7 +1666,7 @@ properties:
           containerSecurityContext: *containerSecurityContext-spec
           extraDynamicConfig:
             type: object
-            additionalProperties: false
+            additionalProperties: true
             description: |
               This refers to traefik's post-startup configuration.
 
@@ -1520,7 +1682,7 @@ properties:
               that you would like to expose, formatted in a k8s native way.
           extraStaticConfig:
             type: object
-            additionalProperties: false
+            additionalProperties: true
             description: |
               This refers to traefik's startup configuration.
 
@@ -1557,9 +1719,11 @@ properties:
           image: *image-spec
           resources: *resources-spec
           serviceAccount: *serviceAccount
+          extraPodSpec: *extraPodSpec-spec
       labels:
         type: object
-        additionalProperties: true
+        additionalProperties: false
+        patternProperties: *labels-and-annotations-patternProperties
         description: |
           K8s labels for the proxy pod.
 
@@ -1569,7 +1733,8 @@ properties:
           ```
       annotations:
         type: object
-        additionalProperties: true
+        additionalProperties: false
+        patternProperties: *labels-and-annotations-patternProperties
         description: |
           K8s annotations for the proxy pod.
 
@@ -1714,7 +1879,7 @@ properties:
           ```
       extraFiles: *extraFiles
       extraEnv:
-        type: object
+        type: [object, array]
         additionalProperties: true
         description: |
           Extra environment variables that should be set for the user pods.
@@ -1847,14 +2012,16 @@ properties:
         description: *kubespawner-native-config-description
       extraAnnotations:
         type: object
-        additionalProperties: true
+        additionalProperties: false
+        patternProperties: *labels-and-annotations-patternProperties
         description: *kubespawner-native-config-description
       extraContainers:
         type: array
         description: *kubespawner-native-config-description
       extraLabels:
         type: object
-        additionalProperties: true
+        additionalProperties: false
+        patternProperties: *labels-and-annotations-patternProperties
         description: *kubespawner-native-config-description
       extraPodConfig:
         type: object
@@ -1961,7 +2128,8 @@ properties:
                   name to reference from the containers volumeMounts section.
           extraLabels:
             type: object
-            additionalProperties: true
+            additionalProperties: false
+            patternProperties: *labels-and-annotations-patternProperties
             description: |
               Configures `KubeSpawner.storage_extra_labels`. Note that these
               labels are set on the PVC during creation only and won't be
@@ -2076,6 +2244,7 @@ properties:
                           type: integer
           resources: *resources-spec
           serviceAccount: *serviceAccount
+          extraPodSpec: *extraPodSpec-spec
       podPriority:
         type: object
         additionalProperties: false
@@ -2157,6 +2326,7 @@ properties:
         properties:
           enabled:
             type: boolean
+          image: *image-spec
           replicas:
             type: integer
             description: |
@@ -2259,7 +2429,8 @@ properties:
           for more details.
       annotations:
         type: object
-        additionalProperties: true
+        additionalProperties: false
+        patternProperties: *labels-and-annotations-patternProperties
         description: |
           Annotations to apply to the Ingress resource.
 
@@ -2276,6 +2447,13 @@ properties:
           Suffix added to Ingress's routing path pattern.
 
           Specify `*` if your ingress matches path by glob pattern.
+      pathType:
+        enum: [Prefix, Exact, ImplementationSpecific]
+        description: |
+          The path type to use. The default value is 'Prefix'. Only applies on Kubernetes v1.18+.
+
+          See [the Kubernetes documentation](https://kubernetes.io/docs/concepts/services-networking/ingress/#path-types) 
+          for more details about path types.
       tls:
         type: array
         description: |
@@ -2292,7 +2470,8 @@ properties:
     properties:
       annotations:
         type: object
-        additionalProperties: true
+        additionalProperties: false
+        patternProperties: *labels-and-annotations-patternProperties
         description: |
           Annotations to apply to the hook and continous image puller pods. One example use case is to
           disable istio sidecars which could interfere with the image pulling.

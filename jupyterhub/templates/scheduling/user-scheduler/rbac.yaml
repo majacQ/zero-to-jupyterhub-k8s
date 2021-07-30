@@ -203,8 +203,8 @@ metadata:
     {{- include "jupyterhub.labels" . | nindent 4 }}
 subjects:
   - kind: ServiceAccount
-    name: user-scheduler
-    namespace: {{ .Release.Namespace }}
+    name: {{ include "jupyterhub.user-scheduler-deploy.fullname" . }}
+    namespace: "{{ .Release.Namespace }}"
 roleRef:
   kind: ClusterRole
   name: {{ include "jupyterhub.user-scheduler.fullname" . }}

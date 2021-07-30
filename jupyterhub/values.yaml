@@ -136,6 +136,7 @@ hub:
   existingSecret:
   serviceAccount:
     annotations: {}
+  extraPodSpec: {}
 
 rbac:
   enabled: true
@@ -192,7 +193,7 @@ proxy:
       allowPrivilegeEscalation: false
     image:
       name: jupyterhub/configurable-http-proxy
-      tag: 4.4.0
+      tag: 4.5.0 # https://github.com/jupyterhub/configurable-http-proxy/releases
       pullPolicy:
       pullSecrets: []
     extraCommandLineFlags: []
@@ -224,6 +225,7 @@ proxy:
       enabled: false
       maxUnavailable:
       minAvailable: 1
+    extraPodSpec: {}
   # traefik relates to the autohttps pod, which is responsible for TLS
   # termination when proxy.https.type=letsencrypt.
   traefik:
@@ -233,7 +235,7 @@ proxy:
       allowPrivilegeEscalation: false
     image:
       name: traefik
-      tag: v2.4.8 # ref: https://hub.docker.com/_/traefik?tab=tags
+      tag: v2.4.11 # ref: https://hub.docker.com/_/traefik?tab=tags
       pullPolicy:
       pullSecrets: []
     hsts:
@@ -265,6 +267,7 @@ proxy:
       minAvailable: 1
     serviceAccount:
       annotations: {}
+    extraPodSpec: {}
   secretSync:
     containerSecurityContext:
       runAsUser: 65534 # nobody user
@@ -425,7 +428,7 @@ scheduling:
       #            hand with an inspection of the user-scheduelrs RBAC resources
       #            that we have forked.
       name: k8s.gcr.io/kube-scheduler
-      tag: v1.19.10 # ref: https://github.com/kubernetes/sig-release/blob/HEAD/releases/patch-releases.md
+      tag: v1.19.13 # ref: https://github.com/kubernetes/website/blob/main/content/en/releases/patch-releases.md
       pullPolicy:
       pullSecrets: []
     nodeSelector: {}
@@ -437,6 +440,7 @@ scheduling:
     resources: {}
     serviceAccount:
       annotations: {}
+    extraPodSpec: {}
   podPriority:
     enabled: false
     globalDefault: false
@@ -444,6 +448,15 @@ scheduling:
     userPlaceholderPriority: -10
   userPlaceholder:
     enabled: true
+    image:
+      name: k8s.gcr.io/pause
+      # tag's can be updated by inspecting the output of the command:
+      # gcloud container images list-tags k8s.gcr.io/pause --sort-by=~tags
+      #
+      # If you update this, also update prePuller.pause.image.tag
+      tag: "3.5"
+      pullPolicy:
+      pullSecrets: []
     replicas: 0
     containerSecurityContext:
       runAsUser: 65534 # nobody user
@@ -515,7 +528,11 @@ prePuller:
       allowPrivilegeEscalation: false
     image:
       name: k8s.gcr.io/pause
-      tag: "3.2" # https://console.cloud.google.com/gcr/images/google-containers/GLOBAL/pause?gcrImageListsize=30
+      # tag's can be updated by inspecting the output of the command:
+      # gcloud container images list-tags k8s.gcr.io/pause --sort-by=~tags
+      #
+      # If you update this, also update scheduling.userPlaceholder.image.tag
+      tag: "3.5"
       pullPolicy:
       pullSecrets: []
 
@@ -524,16 +541,24 @@ ingress:
   annotations: {}
   hosts: []
   pathSuffix:
+  pathType: Prefix
   tls: []
 
+# cull relates to the jupyterhub-idle-culler service, responsible for evicting
+# inactive singleuser pods.
+#
+# The configuration below, except for enabled, corresponds to command-line flags
+# for jupyterhub-idle-culler as documented here:
+# https://github.com/jupyterhub/jupyterhub-idle-culler#as-a-standalone-script
+#
 cull:
   enabled: true
-  users: false
-  removeNamedServers: false
-  timeout: 3600
-  every: 600
-  concurrency: 10
-  maxAge: 0
+  users: false # --cull-users
+  removeNamedServers: false # --remove-named-servers
+  timeout: 3600 # --timeout
+  every: 600 # --cull-every
+  concurrency: 10 # --concurrency
+  maxAge: 0 # --max-age
 
 debug:
   enabled: false

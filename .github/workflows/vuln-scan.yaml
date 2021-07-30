@@ -42,14 +42,14 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with:
-          # chartpress requires the full history
+          # chartpress requires git history to set chart version and image tags
+          # correctly
           fetch-depth: 0
-      - name: Create ./tmp dir
-        run: |
-          mkdir ./tmp
+
       - uses: actions/setup-python@v2
         with:
           python-version: "3.8"
+
       - name: Install chartpress
         run: |
           # FIXME: six is required by docker 5.0.0 but isn't explicitly required
@@ -73,10 +73,13 @@ jobs:
           echo "::set-output name=name::$(echo $IMAGE_SPEC | sed 's/\(.*\):.*/\1/')"
           echo "::set-output name=tag::$(echo $IMAGE_SPEC | sed 's/.*:\(.*\)/\1/')"
 
+      - name: Create ./tmp dir
+        run: mkdir ./tmp
+
       # Action reference: https://github.com/aquasecurity/trivy-action
       - name: Scan latest published image
         id: scan_1
-        uses: aquasecurity/trivy-action@ac8de07fd168680dd0331bef43681c0e150e9ad1
+        uses: aquasecurity/trivy-action@9438b49cc3156b2e8c77c1ba8ffbaa3bae24e3c2
         with:
           image-ref: ${{ steps.image.outputs.spec }}
           format: json # ref: https://github.com/aquasecurity/trivy#save-the-results-as-json
@@ -99,7 +102,7 @@ jobs:
       - name: Scan rebuilt image
         id: scan_2
         if: steps.rebuild.outcome == 'success'
-        uses: aquasecurity/trivy-action@ac8de07fd168680dd0331bef43681c0e150e9ad1
+        uses: aquasecurity/trivy-action@9438b49cc3156b2e8c77c1ba8ffbaa3bae24e3c2
         with:
           image-ref: rebuilt-image
           format: json # ref: https://github.com/aquasecurity/trivy#save-the-results-as-json
@@ -158,7 +161,7 @@ jobs:
 
       - name: Describe vulnerabilities
         if: steps.rebuild.outcome == 'success'
-        uses: aquasecurity/trivy-action@ac8de07fd168680dd0331bef43681c0e150e9ad1
+        uses: aquasecurity/trivy-action@9438b49cc3156b2e8c77c1ba8ffbaa3bae24e3c2
         with:
           image-ref: rebuilt-image
           format: table
