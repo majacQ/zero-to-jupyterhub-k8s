@@ -52,7 +52,7 @@ jsonschema==3.2.0
     # via jupyter-telemetry
 jupyter-telemetry==0.1.0
     # via jupyterhub
-jupyterhub==1.4.1
+jupyterhub==1.5.0
     # via
     #   -r requirements.in
     #   jupyterhub-firstuseauthenticator
@@ -161,8 +161,6 @@ rsa==4.7.2
     # via google-auth
 ruamel.yaml==0.17.9
     # via jupyter-telemetry
-ruamel.yaml.clib==0.2.2
-    # via ruamel.yaml
 six==1.16.0
     # via
     #   bcrypt
