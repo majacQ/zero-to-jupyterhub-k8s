@@ -52,7 +52,7 @@ jsonschema==3.2.0
     # via jupyter-telemetry
 jupyter-telemetry==0.1.0
     # via jupyterhub
-jupyterhub==1.4.1
+jupyterhub==2.0.2
     # via
     #   -r requirements.in
     #   jupyterhub-firstuseauthenticator
@@ -102,6 +102,8 @@ oauthlib==3.1.1
     #   requests-oauthlib
 onetimepass==1.0.1
     # via jupyterhub-nativeauthenticator
+packaging==21.3
+    # via jupyterhub
 pamela==1.0.0
     # via jupyterhub
 prometheus-client==0.11.0
@@ -129,6 +131,8 @@ pymysql==1.0.2
     # via -r requirements.in
 pyopenssl==20.0.1
     # via certipy
+pyparsing==3.0.6
+    # via packaging
 pyrsistent==0.17.3
     # via jsonschema
 python-dateutil==2.8.1
@@ -161,8 +165,6 @@ rsa==4.7.2
     # via google-auth
 ruamel.yaml==0.17.9
     # via jupyter-telemetry
-ruamel.yaml.clib==0.2.2
-    # via ruamel.yaml
 six==1.16.0
     # via
     #   bcrypt
