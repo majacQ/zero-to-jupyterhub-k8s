@@ -190,7 +190,7 @@ jobs:
       # ref: https://github.com/peter-evans/create-pull-request
       - name: Create or update a PR
         if: steps.analyze.outputs.proceed == 'yes'
-        uses: peter-evans/create-pull-request@9825ae65b1cb54b543b938503728b432a0176d29
+        uses: peter-evans/create-pull-request@89265e8d24a5dea438a2577fdc409a11e9f855ca
         with:
           token: "${{ secrets.GITHUB_TOKEN }}"
           author: jupyterhub vuln-scan bot <noreply@github.com>
