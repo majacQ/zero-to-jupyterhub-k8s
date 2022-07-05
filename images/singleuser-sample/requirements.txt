@@ -3,3 +3,4 @@
 
 jupyterhub==1.4.1
 nbgitpuller==0.10.1
+mistune>=2.0.3 # not directly required, pinned by Snyk to avoid a vulnerability
