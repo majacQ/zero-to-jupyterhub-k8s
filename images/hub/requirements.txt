@@ -82,7 +82,7 @@ kubernetes==17.17.0
     # via jupyterhub-kubespawner
 ldap3==2.9
     # via jupyterhub-ldapauthenticator
-mako==1.1.4
+mako==1.2.2
     # via alembic
 markupsafe==2.0.1
     # via
