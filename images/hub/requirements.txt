@@ -94,7 +94,7 @@ nullauthenticator==1.0.0
     # via -r requirements.in
 oauthenticator==14.0.0
     # via -r requirements.in
-oauthlib==3.1.1
+oauthlib==3.2.1
     # via
     #   jupyterhub
     #   jupyterhub-ltiauthenticator
@@ -159,10 +159,8 @@ requests-oauthlib==1.3.0
     #   mwoauth
 rsa==4.7.2
     # via google-auth
-ruamel.yaml==0.17.9
+ruamel-yaml==0.17.9
     # via jupyter-telemetry
-ruamel.yaml.clib==0.2.2
-    # via ruamel.yaml
 six==1.16.0
     # via
     #   bcrypt
