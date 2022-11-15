@@ -2,4 +2,5 @@
 # .github/dependabot.yaml.
 
 jupyterhub==1.4.1
-nbgitpuller==0.10.1
+nbgitpuller==0.10.2
+setuptools>=65.5.1 # not directly required, pinned by Snyk to avoid a vulnerability
