@@ -18,7 +18,7 @@ bcrypt==3.2.0
     #   jupyterhub-nativeauthenticator
 cachetools==4.2.2
     # via google-auth
-certifi==2021.5.30
+certifi==2022.12.7
     # via
     #   kubernetes
     #   requests
@@ -159,10 +159,8 @@ requests-oauthlib==1.3.0
     #   mwoauth
 rsa==4.7.2
     # via google-auth
-ruamel.yaml==0.17.9
+ruamel-yaml==0.17.9
     # via jupyter-telemetry
-ruamel.yaml.clib==0.2.2
-    # via ruamel.yaml
 six==1.16.0
     # via
     #   bcrypt
